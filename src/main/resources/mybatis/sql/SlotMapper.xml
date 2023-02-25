@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.com.choi.mapper.SlotMapper">
+  <insert id="insertSlot" parameterType="java.lang.String">
+  	INSERT INTO
+  		SLOT_INFO(
+  			memberSlotNo
+			, deviceType
+			, platformType
+			, keyword
+			, searchKey
+			, slotName
+			, headless
+			, insDate
+		) VALUES(
+			#{memberSlotNo}
+			, #{deviceType}
+			, #{platformType}
+			, #{keyword}
+			, #{searchKey}
+			, #{slotName}
+			, #{headless}
+			, now()
+		)
+  </insert>
+  
+  <insert id="updateSlot" parameterType="java.lang.String">
+		UPDATE 
+			SLOT_INFO
+		SET 
+			memberSlotNo = #{memberSlotNo}
+			, deviceType = #{deviceType}
+			, platformType = #{platformType}
+			, keyword = #{keyword}
+			, searchKey = #{searchKey}
+			, slotName = #{slotName}
+			, headless = #{headless}
+		WHERE 
+			slotNo = #{slotNo}
+  </insert>
+  
+  <select id="selectSlotIdx" parameterType="java.lang.String" resultType="java.util.HashMap">
+    select 
+    	*
+    from 
+    	SLOT_INFO 
+    where 
+    	slotNo = #{slotNo}
+  </select>
+  
+  <select id="getSlotList" parameterType="java.lang.String" resultType="java.util.HashMap" >
+	    select 
+	    	*
+	    from 
+	    	SLOT_INFO
+	    order by 
+	    	status 
+	    desc
+  </select>
+  
+  <select id="selectGetSlotCnt" parameterType="java.lang.String" resultType="java.util.HashMap">
+	SELECT 
+		COUNT(MS.memberSlotNo) AS slotAllCnt
+		, COUNT(SI.keywordNo) AS siSlotNullCnt
+		, COUNT(CASE WHEN MS.endDate BETWEEN NOW() AND DATE_ADD(NOW(),INTERVAL 1 WEEK )THEN 1 END) AS limitWeekCnt
+		, COUNT(CASE WHEN MS.endDate &lt; NOW() THEN 1 END) AS limitOverCnt
+	FROM 
+		MEMBER_SLOT AS MS
+	LEFT OUTER JOIN 
+		SLOT_INFO AS SI
+		ON SI.memberSlotNo = MS.memberSlotNo
+		AND SI.STATUS = 1
+	WHERE 
+		MS.memberNo = #{memberNo}
+		AND MS.STATUS = 1
+  </select>
+  
+  <select id="selectGetSlotList" parameterType="java.lang.String" resultType="java.util.HashMap">
+	SELECT
+		member.memberName,
+		product.productName,
+		keyword.keyword,
+		keyword.currentRank,
+		keyword.slotCnt,
+		slotData.*
+	FROM
+		MEMBER_INFO member
+	INNER JOIN
+		PRODUCT_INFO product
+		ON member.memberNo = product.memberNo
+	INNER JOIN
+		PRODUCT_DETAIL detail
+		ON product.productNo = detail.productNo
+	INNER JOIN
+		PRODUCT_KEYWORD keyword
+		ON keyword.productDetailNo = detail.productDetailNo
+	LEFT OUTER JOIN
+	(
+	   SELECT
+	   slot.keywordNo,
+	   SUM(jobCount) AS jobCount,
+	   SUM(failCount) AS failCount,
+	   SUM(jobData.ing) AS ingCount,
+	   SUM(jobData.complete) AS completeCount,
+	   SUM(jobData.success) AS successCount,
+	   SUM(jobData.fail) AS failCount2,
+	   MAX(lastEndTime) AS lastEndTime
+	   FROM
+		SLOT_INFO slot
+	   LEFT OUTER JOIN
+	   (
+	      SELECT
+	      job.slotNo,COUNT(*),
+	      SUM(CASE 
+	         WHEN job.status = 1 THEN 1 ELSE 0
+	      END) AS ing,
+	      SUM(CASE 
+	         WHEN job.status = 2 THEN 1 ELSE 0
+	      END) AS complete,
+	      SUM(CASE 
+	         WHEN job.resultCode = 1 THEN 1 ELSE 0
+	      END) AS success,
+	      SUM(CASE 
+	         WHEN job.resultCode &lt;&gt; 1 THEN 1 ELSE 0
+	      END) AS fail,
+	      MAX(job.endTime) AS lastEndTime
+	      FROM
+	      JOB_INFO job
+	      WHERE 
+	      job.startTime > ADDDATE(SYSDATE(), INTERVAL -60 MINUTE)
+	      GROUP BY job.slotNo
+	   )jobData
+	   ON slot.slotNo = jobData.slotNo
+	   WHERE 
+	   	slot.status = 1 AND slot.testYn = 0
+	   GROUP BY slot.keywordNo
+	) slotData
+	ON slotData.keywordNo = keyword.keywordNo
+	WHERE 
+		keyword.slotCnt  > 0 AND keyword.status = 1
+	ORDER BY 
+		member.memberNo,product.productNo DESC
+  </select>
+</mapper>

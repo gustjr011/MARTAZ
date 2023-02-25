@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.com.choi.mapper.ProductMapper">
+  <select id="getProductList" parameterType="int" resultType="java.util.HashMap" >
+	SELECT 
+		 PI.productNo AS I_No
+		 , PI.productName AS I_Name
+		 , PI.status AS I_status
+		 , PD.productDetailNo AS D_DetailNo
+		 , PD.platformType AS D_platformType
+		 , PD.searchKey  AS D_searchKey
+		 , PD.status AS D_status
+	<if test="memberNo == 0">
+		 , MI.memberName AS M_name
+		 , MI.memberId AS M_id
+		 , MI.memberNo AS M_no
+		 , MI.phone AS M_phone
+	</if>
+		, SIcnt.cnt AS S_cnt
+	FROM 
+		PRODUCT_INFO AS PI
+	INNER JOIN 
+		PRODUCT_DETAIL AS PD
+		ON PI.productNo = PD.productNo
+	LEFT JOIN
+		MEMBER_INFO AS MI
+		ON PI.memberNo = MI.memberNo
+	LEFT JOIN
+		(SELECT 
+			PK.productDetailNo
+			, SIcnt.cnt
+		FROM 
+			PRODUCT_KEYWORD AS PK
+		LEFT JOIN
+			(SELECT 
+				keywordNo
+				, COUNT(keywordNo) AS cnt 
+				FROM 
+					SLOT_INFO 
+				WHERE 
+					STATUS = 1 
+				GROUP BY keywordNo) AS SIcnt
+			ON SIcnt.keywordNo = PK.productDetailNo
+		WHERE 
+			PK.status = 1 
+			AND SIcnt.cnt IS NOT NULL) AS SIcnt
+		ON SIcnt.productDetailNo = PD.productDetailNo
+	WHERE
+		PI.status = 1
+	<if test="memberNo != 0">
+		AND PI.memberNo = #{memberNo}	
+	ORDER BY 
+		I_NO ASC
+	</if>
+	<if test="memberNo == 0">	
+	ORDER BY 
+		 M_no ASC
+		 ,I_no ASC
+	</if>
+  </select>
+  
+  <select id="getProductAllList" parameterType="int" resultType="java.util.HashMap" >
+	SELECT 
+		 PI.productNo AS I_No
+		 , PI.memberNo AS I_mberNo
+		 , PI.productName AS I_Name
+		 , PI.status AS I_status
+		 , PD.productDetailNo AS D_DetailNo
+		 , PD.platformType AS D_platformType
+		 , PD.searchKey  AS D_searchKey
+		 , PD.status AS D_status
+		 , MI.memberName AS M_name
+		 , MI.memberId AS M_id
+		 , MI.phone AS M_phone
+		 , SIcnt.cnt AS S_cnt
+	FROM 
+		PRODUCT_INFO AS PI
+	INNER JOIN 
+		PRODUCT_DETAIL AS PD
+		ON PI.productNo = PD.productNo
+	LEFT JOIN
+		MEMBER_INFO AS MI
+		ON PI.memberNo = MI.memberNo
+	LEFT JOIN
+		(SELECT 
+			PK.productDetailNo
+			, SIcnt.cnt
+		FROM 
+			PRODUCT_KEYWORD AS PK
+		LEFT JOIN
+			(SELECT 
+				keywordNo
+				, COUNT(keywordNo) AS cnt 
+				FROM 
+					SLOT_INFO 
+				WHERE 
+					STATUS = 1 
+				GROUP BY keywordNo) AS SIcnt
+			ON SIcnt.keywordNo = PK.productDetailNo
+		WHERE 
+			PK.status = 1 
+			AND SIcnt.cnt IS NOT NULL) AS SIcnt
+		ON SIcnt.productDetailNo = PD.productDetailNo
+	ORDER BY 
+		I_mberNo ASC
+  </select>
+  
+  <select id="getProductInfo" parameterType="int" resultType="java.util.HashMap" >
+  	SELECT 
+  		* 
+  	FROM 
+  		PRODUCT_INFO 
+  	<if test="memberNo != 0">
+  	WHERE
+		memberNo = #{memberNo}
+	</if>
+  </select>
+  
+  <select id="getProductAllInfo" parameterType="int" resultType="java.util.HashMap" >
+  	SELECT 
+  		* 
+  	FROM 
+  		PRODUCT_INFO 
+  </select>
+  
+  <select id="getProductKeywordList" parameterType="int" resultType="java.util.HashMap" >
+	SELECT 
+		*
+	FROM 
+		PRODUCT_KEYWORD AS PK
+	INNER JOIN 
+		PRODUCT_DETAIL AS PD
+		ON PK.productDetailNo = PD.productDetailNO
+	INNER JOIN 
+		PRODUCT_INFO AS PI
+		ON PI.productNo = PD.productNo
+	WHERE 
+		PD.productDetailNo = #{productNo}
+		AND PI.memberNo = #{memberNo}
+		AND PK.status = 1
+  </select>
+  
+  <select id="getProductAdminKeywordList" parameterType="int" resultType="java.util.HashMap" >
+	SELECT 
+		*
+	FROM 
+		PRODUCT_KEYWORD AS PK
+	INNER JOIN 
+		PRODUCT_DETAIL AS PD
+		ON PK.productDetailNo = PD.productDetailNO
+	INNER JOIN 
+		PRODUCT_INFO AS PI
+		ON PI.productNo = PD.productNo
+	WHERE 
+		PD.productDetailNo = #{productNo}
+		AND PK.status = 1
+  </select>
+  
+  <insert id="insertProductInfo" parameterType="java.lang.String">
+  	INSERT INTO 
+		PRODUCT_INFO(memberNo, productName)
+	VALUES (${memberNo}, ${productName});
+  </insert>
+  
+  <insert id="insertProductDetail" parameterType="java.lang.String">
+  	INSERT INTO 
+		PRODUCT_DETAIL(productNo, platformType, searchKey)
+	VALUES (${productNo}, ${platformType}, #{searchKey});
+  </insert>
+
+  <select id="updateProductKeyword" parameterType="java.lang.String" resultType="kr.com.choi.vo.Result" >
+  	CALL WebUser__USP_SLOT_INFO_UPDATE(
+  		${MEMBER_NO}
+  		,${PRODUCT_DETAIL_NO}
+  		,${KEYWORD_NO}
+  		,#{KEYWORD}
+  		,${DEVICE_TYPE}
+  		,${SLOT_CNT}
+  		,${STATUS}
+  		,${TEST_YN})
+  </select>
+</mapper>
